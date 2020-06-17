@@ -15,8 +15,8 @@ TITLE = 'StarryDB explorer'
 
 
 # import data into dataframe
-df = pd.read_csv(DATAPATH)[::10]
-df.fillna('N/A', inplace=True)
+df = pd.read_csv(DATAPATH)#[::10]
+#df.fillna('N/A', inplace=True)
 df.replace(False, 'False', inplace=True)
 df.replace(True, 'True', inplace=True)
 
@@ -62,11 +62,16 @@ def get_point_size_options(df):
     return options
 
 
-def get_labels(col):
-    """Get labels to use as hover text over points, based on the
-    name of the column thats being plotted"""
-    return list(df['FORMULA'].iloc[np.where(df[col].notnull())[0]])
-
+def strings_to_category_nums(arr, rescale=True, low=0, high=1):
+    """Convert an array of strings to category integers.
+    Example: ['a', 'b', 'c', 'a'] --> [0, 1, 2, 0].
+    If rescale=True argument is used, integrers will be rescaled
+    to floats between low and high."""
+    a = pd.get_dummies(arr).values.argmax(1).astype('float')
+    if rescale:
+        a = (a - np.min(a)) / (np.max(a) - np.min(a))
+        a = (a * (high - low)) + low
+    return a
   
 # get the options to show in the dropdown menus
 plotting_options = get_plotting_options(df)
@@ -104,8 +109,10 @@ app.layout = html.Div([
             html.B('Total rows: '), str(df.shape[0]), html.Br(),
             html.B('Total columns: '), str(df.shape[1]), html.Br(),
             ]),
+    
+    html.Hr(),
 
-    html.Br(),
+
 
 
 
@@ -122,14 +129,9 @@ app.layout = html.Div([
         placeholder='Select variable for X-axis (optional)',
         style={'width': '60%', 'verticalAlign': 'middle'}),
     
-    
-    
-    
-    
-    
+
     # Y dropdown menu
     html.P([html.B('Select a variable to plot on the Y-axis')]),
-
 
     dcc.Dropdown(
         id='y_var_dropdown',
@@ -139,14 +141,15 @@ app.layout = html.Div([
         placeholder='Select variable for Y-axis',
         style={'width': '60%', 'verticalAlign': 'middle'}),
     
-    
+    html.Hr(),
     
     
     
  
+    
+    
     # filter dropdown menu
     html.P([html.B('Select a filter for the results')]),
-
 
     dcc.Dropdown(
         id='filter_dropdown',
@@ -169,6 +172,8 @@ app.layout = html.Div([
         placeholder="Select value for filtering",
         style={'width': '60%', 'verticalAlign': 'middle'}),
     
+    html.Hr(),
+
 
 
  
@@ -181,9 +186,21 @@ app.layout = html.Div([
         placeholder="Select variable for point size (optional)",
         style={'width': '60%', 'verticalAlign': 'middle'}),   
     
+    # point color dropdown menu
+    html.P([html.B('Select a variable for the point color (optional)')]),
+
+    dcc.Dropdown(
+        id='point_color_dropdown',
+        options=plotting_options,
+        placeholder="Select variable for point color (optional)",
+        style={'width': '60%', 'verticalAlign': 'middle'}),   
+    
 
 
-    html.Br(),
+
+
+    html.Hr(),
+
 
 
 
@@ -197,15 +214,14 @@ app.layout = html.Div([
 
 
 
-
 @app.callback(
     dash.dependencies.Output('filter_val_dropdown', 'options'),
     [dash.dependencies.Input('filter_dropdown', 'value')])
 def set_filter_val_options(selected_filter):
     """Set which options to show in the filter value dropdown menu"""
     filt_val_options = list(df.fillna('N/A')[selected_filter].unique())
+    #filt_val_options = list(df[selected_filter].unique())                                              
     return [{'label': i, 'value': i} for i in filt_val_options]
-
 
 
 @app.callback(
@@ -227,8 +243,9 @@ def set_default_filter_val(available_options):
      dash.dependencies.Input('y_var_dropdown', 'value'),
      dash.dependencies.Input('filter_dropdown', 'value'),
      dash.dependencies.Input('filter_val_dropdown', 'value'),
-     dash.dependencies.Input('point_size_dropdown', 'value')])
-def update_graph(X, Y, F, FV, PS):
+     dash.dependencies.Input('point_size_dropdown', 'value'),
+     dash.dependencies.Input('point_color_dropdown', 'value')])
+def update_graph(X, Y, F, FV, PS, PC):
     """Update the graph when variable selections are changed"""
     
     '''
@@ -286,35 +303,52 @@ def update_graph(X, Y, F, FV, PS):
 
     '''
     
-   
-    
     
     dfs = df[df[F] == FV]#[[X, Y]].dropna()
     x = list(dfs[X])
     y = list(dfs[Y])
-    #record_num = len(y)  
-    #hover_text = get_labels(Y)
+
+
     
-        
+    # change point sizes based on selection in dropdown menu
     if PS is None:
         sizes = np.full(len(x), 20)
     else:
-        sizes = list(dfs[PS])
-        sizes = (sizes - np.min(sizes)) / (np.max(sizes) - np.min(sizes))
-        sizes = (sizes * 25) + 5
-        #sizes = np.interp(sizes, np.min(sizes), np.max(sizes), (10, 100))
-        
-        #sizes = np.full(len(x), 20)
+        sizes = np.nan_to_num(dfs[PS])
+        if len(sizes) > 0:
+            sizes = strings_to_category_nums(sizes, high=30, low=3)
     
+    
+    
+    
+    # change point colors based on selection in dropdown menu
+    if PC is None:
+        colors = np.full(len(x), 20)
+    else:
+        colors = np.nan_to_num(dfs[PC])
+
+        if len(colors) > 0:
+            colors = strings_to_category_nums(colors)
+
+
+
+
+
+    # get lost of text to show when hovering over points
+    hover_text = []
+    for i in range(len(dfs)):
+        vals = [it[1] for it in dfs.iloc[i].to_dict().items()][:5]
+        hover_text.append(str(vals))
     
     
     # create list of data series to plot
     data_list = [
                 {'x': x, 'y': y,
-                 #'text': hover_text,
-                 #'hoverinfo': 'text',
+                 'text': hover_text,
+                 'hoverinfo': 'text',
                  'mode': 'markers',
-                 'marker': {'size': sizes}}
+                 'marker': {'size': sizes,
+                            'color': colors}}
                 ]
     
     # create plot layout
@@ -322,8 +356,8 @@ def update_graph(X, Y, F, FV, PS):
         'title': 'Showing {} records where {} is {}'.format(len(dfs), format_var(F), FV),
         'xaxis': {'title': format_var(X)},
         'yaxis': {'title': format_var(Y)},
-        'height': 600,
-        'margin': {'l': 200, 'r': 50, 'b': 200, 't': 50}}
+        'height': 800,
+        'margin': {'l': 150, 'r': 150, 'b': 150, 't': 50}}
 
 
     return {'data': data_list, 'layout': layout}
