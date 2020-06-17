@@ -11,7 +11,17 @@ import pandas as pd
 DATAPATH = 'STARRYDB_interpolated_pp_wc.csv'
 
 # title for the browser page tab
-TITLE = 'STARRYDB explorer'
+TITLE = 'StarryDB explorer'
+
+
+# import data into dataframe
+df = pd.read_csv(DATAPATH)[::50]
+df.fillna('N/A', inplace=True)
+df.replace(False, 'False', inplace=True)
+df.replace(True, 'True', inplace=True)
+
+# use this for fast testing
+#df = pd.DataFrame(np.random.random((30, 4)), columns=['a','b','c','d'])
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,10 +49,16 @@ def get_filtering_options(df):
 
 def get_plotting_options(df):
     """Get the dropdown options to show for plotting variables"""
+    return [{'label': c, 'value': c} for c in list(df)]
+
+
+def get_point_size_options(df):
+    """Get options for to show for choosing point size"""
     options = []
-    for c_raw in list(df):
-        c = format_var(c_raw)
-        options.append({'label': c, 'value': c_raw})
+    # get list of all column names that aren't ints or floats
+    for c in list(df):
+        if df[c].dtype == 'int64' or df[c].dtype == 'float64':
+            options.append({'label': c, 'value': c})
     return options
 
 
@@ -52,41 +68,19 @@ def get_labels(col):
     return list(df['FORMULA'].iloc[np.where(df[col].notnull())[0]])
 
   
-def get_plot_layout(title='Title', xlabel='X-label', ylabel='Y-label'):
-    """Create the layout dictionary that gets passed to the plot"""
-    layout = {
-        'title': title,
-        'xaxis': {'title': xlabel},
-        'yaxis': {'title': ylabel},
-        'height': 750,
-        'margin': {'l': 200, 'r': 50, 'b': 200, 't': 50}}
-    return layout
-     
-    
-
-# import data into dataframe
-df = pd.read_csv(DATAPATH)[::50]
-# use this for fast testing
-#df = pd.DataFrame(np.random.random((30, 4)), columns=['a','b','c','d'])
-
 # get the options to show in the dropdown menus
 plotting_options = get_plotting_options(df)
 filtering_options = get_filtering_options(df)
+point_size_options = get_point_size_options(df)
+
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-#import flask
-#server = flask.Flask(__name__)
-#server.secret_key = os.environ.get(
-#    'secret_key', str(np.random.randint(0, 1000000)))
 
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # setup the server and app
 app = dash.Dash(__name__)
@@ -98,78 +92,98 @@ server = app.server  # this line is required for web hosting
 # Put your Dash page layout code here
 
 # create app layout
-app.layout = html.Div(children=[
+app.layout = html.Div([
     
     # top heading
     html.H1(children=TITLE),
 
-    # create HTML division with paragraph for intro information
-    html.Div([
-        html.P([
+    # paragraph for intro information
+    
+    html.P([
             html.B('Dataset: '), str(DATAPATH), html.Br(),
             html.B('Total rows: '), str(df.shape[0]), html.Br(),
             html.B('Total columns: '), str(df.shape[1]), html.Br(),
-            ])]),
+            ]),
 
     html.Br(),
 
 
-    html.Div([html.P([
-        html.B('Select a variable to plot on the X-axis.')
-        ])]),
 
 
-    # division for the X dropdown menu
-    html.Div([
-        dcc.Dropdown(
-            id='x_var_dropdown',
-            clearable=False,
-            options=plotting_options,
-            value=plotting_options[1]['value'],
-            placeholder="Select variable for X-axis (optional)",
-            style=dict(width='50%', verticalAlign="middle"))]),
-    
-    
-    
-    html.Div([html.P([
-        html.B('Select a variable to plot on the Y-axis.'),
-        ])]),
-    
-    
 
-    # division for the Y dropdown menu
-    html.Div([
-        dcc.Dropdown(
-            id='y_var_dropdown',
-            clearable=False,
-            options=plotting_options,
-            value=plotting_options[2]['value'],
-            placeholder="Select variable for Y-axis",
-            style=dict(width='50%', verticalAlign="middle"))]),
+    # X dropdown menu
+    html.P([html.B('Select a variable to plot on the X-axis'),]),
+
+    dcc.Dropdown(
+        id='x_var_dropdown',
+        clearable=False,
+        options=plotting_options,
+        value=plotting_options[1]['value'],
+        placeholder='Select variable for X-axis (optional)',
+        style={'width': '60%', 'verticalAlign': 'middle'}),
+    
+    
+    
+    
+    
+    
+    # Y dropdown menu
+    html.P([html.B('Select a variable to plot on the Y-axis')]),
+
+
+    dcc.Dropdown(
+        id='y_var_dropdown',
+        clearable=False,
+        options=plotting_options,
+        value=plotting_options[2]['value'],
+        placeholder='Select variable for Y-axis',
+        style={'width': '60%', 'verticalAlign': 'middle'}),
+    
+    
+    
+    
     
  
+    # filter dropdown menu
+    html.P([html.B('Select a filter for the results')]),
+
+
+    dcc.Dropdown(
+        id='filter_dropdown',
+        clearable=False,
+        options=plotting_options,
+        value=plotting_options[3]['value'],
+        placeholder="Select variable for filtering",
+        style={'width': '60%', 'verticalAlign': 'middle'}),   
     
-    html.Div([html.P([
-        html.B('Select a variable which filters the results.'),
-               ])]),
-    
-    # division for the filtering dropdown menu
-    html.Div([
-        dcc.Dropdown(
-            id='filter_var_dropdown',
-            options=filtering_options,
-            placeholder="Select variable for filtering (optional)",
-            style=dict(width='50%', verticalAlign="middle"))]),   
     
     
-    html.Div([html.P([
-            'To hide a filter category from the plot, click its entry in the plot legend.',
-            html.Br(),
-            'To show only one filter category in the plot, double-click that category in the plot legend.'
-            ])]),
+    
+    
+    # filter value dropdown menu
+    html.P([html.B('Select a value for the filter')]),
+
+    dcc.Dropdown(
+        id='filter_val_dropdown',
+        clearable=False,
+        placeholder="Select value for filtering",
+        style={'width': '60%', 'verticalAlign': 'middle'}),
+    
+
+
+ 
+    # point size dropdown menu
+    html.P([html.B('Select a variable for the point size (optional)')]),
+
+    dcc.Dropdown(
+        id='point_size_dropdown',
+        options=point_size_options,
+        placeholder="Select variable for point size (optional)",
+        style={'width': '60%', 'verticalAlign': 'middle'}),   
+    
+
 
     html.Br(),
-
 
 
 
@@ -179,16 +193,45 @@ app.layout = html.Div(children=[
     ])
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Here, create callbacks which are used by objects on the page
+# Create callbacks which animate page objects
+
+
+
+
+@app.callback(
+    dash.dependencies.Output('filter_val_dropdown', 'options'),
+    [dash.dependencies.Input('filter_dropdown', 'value')])
+def set_filter_val_options(selected_filter):
+    """Set which options to show in the filter value dropdown menu"""
+    filt_val_options = list(df.fillna('N/A')[selected_filter].unique())
+    return [{'label': i, 'value': i} for i in filt_val_options]
+
+
+
+@app.callback(
+    dash.dependencies.Output('filter_val_dropdown', 'value'),
+    [dash.dependencies.Input('filter_val_dropdown', 'options')])
+def set_default_filter_val(available_options):
+    """Populate the filter value dropdown menu with default value,
+    using the first value as the default"""
+    return available_options[0]['value']
+
+
+
+
 
 # update graph
 @app.callback(
     dash.dependencies.Output('graph', 'figure'),
     [dash.dependencies.Input('x_var_dropdown', 'value'),
      dash.dependencies.Input('y_var_dropdown', 'value'),
-     dash.dependencies.Input('filter_var_dropdown', 'value')])
-def update_graph(X, Y, F):
+     dash.dependencies.Input('filter_dropdown', 'value'),
+     dash.dependencies.Input('filter_val_dropdown', 'value'),
+     dash.dependencies.Input('point_size_dropdown', 'value')])
+def update_graph(X, Y, F, FV, PS):
     """Update the graph when variable selections are changed"""
+    
+    '''
     
     dfs = df[[X, Y]].dropna()
     x = list(dfs[X])
@@ -240,12 +283,47 @@ def update_graph(X, Y, F):
                     ds['text'].append(df['FORMULA'].iloc[i])
 
 
+
+    '''
+    
+   
+    
+    
+    dfs = df[df[F] == FV]#[[X, Y]].dropna()
+    x = list(dfs[X])
+    y = list(dfs[Y])
+    #record_num = len(y)  
+    #hover_text = get_labels(Y)
+    
+        
+    if PS is None:
+        sizes = np.full(len(x), 20)
+    else:
+        sizes = list(dfs[PS])
+        sizes = (sizes - np.min(sizes)) / (np.max(sizes) - np.min(sizes))
+        sizes = (sizes * 25) + 5
+        #sizes = np.interp(sizes, np.min(sizes), np.max(sizes), (10, 100))
+        
+        #sizes = np.full(len(x), 20)
+    
+    
+    
+    # create list of data series to plot
+    data_list = [
+                {'x': x, 'y': y,
+                 #'text': hover_text,
+                 #'hoverinfo': 'text',
+                 'mode': 'markers',
+                 'marker': {'size': sizes}}
+                ]
+    
     # create plot layout
-    layout = get_plot_layout(
-            title='Showing {} records filtered by {} categories'.format(
-                record_num, len(filter_categories)),
-            xlabel=format_var(X),
-            ylabel=format_var(Y))
+    layout = {
+        'title': 'Showing {} records where {} is {}'.format(len(dfs), format_var(F), FV),
+        'xaxis': {'title': format_var(X)},
+        'yaxis': {'title': format_var(Y)},
+        'height': 600,
+        'margin': {'l': 200, 'r': 50, 'b': 200, 't': 50}}
 
 
     return {'data': data_list, 'layout': layout}
@@ -254,19 +332,6 @@ def update_graph(X, Y, F):
 
 
 
-
-
-
-
-'''
-# update division which reads dropdown menu
-@app.callback(
-    dash.dependencies.Output('x_var_display', 'children'),
-    [dash.dependencies.Input('x_var_dropdown', 'value')])
-def update_output(value):
-    return 'You have selected "{}"'.format(value)
-'''
-
              
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
