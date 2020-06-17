@@ -58,9 +58,8 @@ def get_plot_layout(title='Title', xlabel='X-label', ylabel='Y-label'):
         'title': title,
         'xaxis': {'title': xlabel},
         'yaxis': {'title': ylabel},
-        #'width': 1000,
-        #'height': 600,
-        'margin': {'l': 150, 'r': 150, 'b': 150, 't': 50}}
+        'height': 750,
+        'margin': {'l': 200, 'r': 50, 'b': 200, 't': 50}}
     return layout
      
     
@@ -171,11 +170,13 @@ app.layout = html.Div(children=[
 
     html.Br(),
 
+
+
+
     # create plot
     dcc.Graph(id='graph', config={"displaylogo": False}),
-
-
-])
+    
+    ])
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Here, create callbacks which are used by objects on the page

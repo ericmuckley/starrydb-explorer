@@ -1,6 +1,6 @@
-# Hosted dashboard
+# StarryDB explorer
 
-This is a template for a dashboard with interactive plotting that is hosted online for remote viewing. It uses the Plotly Dash framework built on top of Flask for Python.
+This is a web application for interactive plotting of the StarryDB database.
 
 ## Testing locally
 
