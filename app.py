@@ -15,7 +15,7 @@ TITLE = 'StarryDB explorer'
 
 
 # import data into dataframe
-df = pd.read_csv(DATAPATH)[::50]
+df = pd.read_csv(DATAPATH)[::10]
 df.fillna('N/A', inplace=True)
 df.replace(False, 'False', inplace=True)
 df.replace(True, 'True', inplace=True)
