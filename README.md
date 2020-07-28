@@ -28,7 +28,7 @@ Test pip version: `python3 -m pip --version`
 
 Install virtualenv: `python3 -m pip install --user virtualenv`
 
-To create a virtual environment, navigate to the project folder and run: `python3 -m env <env>`, where `<env>` is the name of your new virtual environment.
+To create a virtual environment, navigate to the project folder and run: `python3 -m venv <env>`, where `<env>` is the name of your new virtual environment.
 
 Before installing packages inside the virtual environment, activate the environment: `source <env>/bin/activate`, where `<env>` is the name of your virtual environment.
 
